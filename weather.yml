@@ -1,0 +1,25 @@
+name: Weather Agent
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # každý deň o 6:00 UTC (= 7:00 SEČ)
+  workflow_dispatch:        # možnosť spustiť aj manuálne
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Inštalácia knižníc
+        run: pip install requests openpyxl PyGithub
+
+      - name: Spusti agenta
+        env:
+          GITHUB_TOKEN: ${{ secrets.WEATHER_TOKEN }}
+          GITHUB_USER: slavo1976
+        run: python weather_agent.py
