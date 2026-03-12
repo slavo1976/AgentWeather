@@ -20,7 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime, timezone, date, timedelta
 from collections import defaultdict
-from github import Github, GithubException
+from github import Github, Auth, GithubException
 
 # ── Konfigurácia ──────────────────────────────────────────────────────────────
 
@@ -28,6 +28,8 @@ CITIES = [
     {"name": "Leonidio",         "lat": 37.1547,  "lon": 22.8742,  "country": "Greece"},
     {"name": "Arco",             "lat": 45.9167,  "lon": 10.8833,  "country": "Italy"},
     {"name": "San Vito la Capo", "lat": 38.1739,  "lon": 12.7340,  "country": "Sicily, Italy"},
+    {"name": "Margalef",         "lat": 41.2833,  "lon":  0.8167,  "country": "Spain"},
+    {"name": "Barsnes",          "lat": 61.1833,  "lon":  6.7667,  "country": "Norway"},
 ]
 
 REPO_NAME   = "AgentWeather"
@@ -40,8 +42,8 @@ HEADERS = ["Dátum", "Teplota (°C)", "Množstvo zrážok (mm)",
 def wind_degrees_to_text(deg: float | None) -> str:
     if deg is None:
         return ""
-    dirs = ["Sever", "Sever-Severozápad", "Severozápad", "Západ-Severozápad", "Západ", "Západ-Juhozápad", "Juhozápad", "Juh-Juhozápad",
-            "Juh", "Juh-Juhovýchod", "Juhovýchod", "Východ-Juhovýchod", "Východ", "Východ-Severovýchod", "Severovýchod", "Sever-Severovýchod"]
+    dirs = ["S", "S", "SZ", "SZ", "Z", "Z", "JZ", "JZ",
+            "J", "J", "JV", "JV", "V", "V", "SV", "SV"]
     return dirs[round(deg / 22.5) % 16]
 
 
@@ -126,10 +128,21 @@ BORDER      = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 ALT_FILL    = PatternFill("solid", start_color="EBF3FB")
 
 
-def style_sheet(ws):
-    ws.freeze_panes = "B2"
+def style_sheet(ws, city_info: dict):
+    # Riadok 1: Google Maps link
+    maps_url = f"https://www.google.com/maps?q={city_info['lat']},{city_info['lon']}"
+    label    = f"📍 {city_info['name']}, {city_info['country']} — Google Maps"
+    link_cell = ws.cell(row=1, column=1, value=label)
+    link_cell.hyperlink  = maps_url
+    link_cell.font       = Font(bold=True, color="0563C1", name="Arial", size=10, underline="single")
+    link_cell.alignment  = Alignment(horizontal="left", vertical="center")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(HEADERS))
+    ws.row_dimensions[1].height = 20
+
+    # Riadok 2: hlavičky stĺpcov
+    ws.freeze_panes = "B3"
     for col_idx, header in enumerate(HEADERS, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell = ws.cell(row=2, column=col_idx, value=header)
         cell.font       = HEADER_FONT
         cell.fill       = HEADER_FILL
         cell.alignment  = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -138,14 +151,14 @@ def style_sheet(ws):
     col_widths = [14, 14, 20, 20, 14, 14, 22]
     for i, w in enumerate(col_widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    ws.row_dimensions[1].height = 32
+    ws.row_dimensions[2].height = 32
 
 
 def upsert_sheet(ws, forecast: list[dict]):
     """Aktualizuje existujúce riadky alebo pridáva nové."""
     # Načítaj existujúce dátumy → riadok
     date_to_row: dict[date, int] = {}
-    for row_idx in range(2, ws.max_row + 1):
+    for row_idx in range(3, ws.max_row + 1):
         cell_val = ws.cell(row=row_idx, column=1).value
         if isinstance(cell_val, (datetime, date)):
             d = cell_val.date() if isinstance(cell_val, datetime) else cell_val
@@ -156,8 +169,8 @@ def upsert_sheet(ws, forecast: list[dict]):
         row_idx = date_to_row.get(d)
 
         if row_idx is None:
-            # Nový riadok
-            row_idx = ws.max_row + 1
+            # Nový riadok (min. riadok 3 — riadok 1 je link, riadok 2 je hlavička)
+            row_idx = max(ws.max_row + 1, 3)
             date_to_row[d] = row_idx
 
         values = [
@@ -198,7 +211,7 @@ def build_workbook(all_forecasts: dict[str, list[dict]],
         else:
             ws = wb.create_sheet(city_name)
             ws.title = city_name
-            style_sheet(ws)
+            style_sheet(ws, city_info)
 
         upsert_sheet(ws, forecast)
 
@@ -274,7 +287,7 @@ def main():
     # 2. Zostav workbook (pokusom načítaj existujúci zo GitHub)
     existing_wb = None
     try:
-        g    = Github(token)
+        g    = Github(auth=Auth.Token(token))
         repo = g.get_user().get_repo(REPO_NAME)
         file = repo.get_contents(EXCEL_FILE)
         buf  = io.BytesIO(file.decoded_content)
