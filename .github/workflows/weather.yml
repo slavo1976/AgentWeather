@@ -32,5 +32,6 @@ jobs:
         env:
           MAIL_USER: ${{ secrets.MAIL_USER }}
           MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          GITHUB_TOKEN: ${{ secrets.WEATHER_TOKEN }}
           STATUS: ${{ job.status }}
         run: python send_email.py
