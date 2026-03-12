@@ -22,7 +22,75 @@ jobs:
         run: pip install requests openpyxl PyGithub
 
       - name: Spusti agenta
+        id: agent
         env:
           GITHUB_TOKEN: ${{ secrets.WEATHER_TOKEN }}
           GITHUB_USER: slavo1976
-        run: python weather_agent.py
+        run: python weather_agent.py 2>&1 | tee agent_output.txt
+
+      - name: Odošli email
+        if: always()
+        env:
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+        run: |
+          STATUS="${{ job.status }}"
+          OUTPUT=$(cat agent_output.txt 2>/dev/null || echo "Žiadny výstup")
+          DATE=$(date '+%d.%m.%Y %H:%M')
+
+          python3 - <<EOF
+          import smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          import os
+
+          status  = os.environ["STATUS"]
+          output  = """$OUTPUT"""
+          date    = "$DATE"
+          user    = os.environ["MAIL_USER"]
+          passwd  = os.environ["MAIL_PASS"]
+
+          emoji   = "✅" if status == "success" else "❌"
+          subject = f"{emoji} WeatherAgent {date} — {status.upper()}"
+
+          msg = MIMEMultipart()
+          msg["From"]    = user
+          msg["To"]      = user
+          msg["Subject"] = subject
+
+          body = f"""WeatherAgent denný beh
+
+Dátum:  {date}
+Status: {emoji} {status.upper()}
+
+Výstup:
+{output}
+
+GitHub: https://github.com/slavo1976/AgentWeather/blob/main/WeatherHistory.xlsx
+"""
+          msg.attach(MIMEText(body, "plain", "utf-8"))
+
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+              s.login(user, passwd)
+              s.send_message(msg)
+              print("Email odoslaný.")
+          EOF
+```
+
+---
+
+Po každom behu dostaneš email:
+```
+✅ WeatherAgent 13.03.2026 06:00 — SUCCESS
+
+WeatherAgent denný beh
+Dátum:  13.03.2026 06:00
+Status: ✅ SUCCESS
+
+Výstup:
+Sťahujem predpoveď pre Leonidio...
+  → 7 dní stiahnutých.
+...
+✅ Hotovo!
+
+GitHub: https://github.com/slavo1976/AgentWeather/blob/main/WeatherHistory.xlsx
