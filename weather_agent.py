@@ -300,9 +300,6 @@ def main():
     wb = build_workbook(all_forecasts, existing_wb)
 
     # Uloži lokálnu kópiu
-    local_path = f"/tmp/{EXCEL_FILE}"
-    wb.save(local_path)
-    print(f"  Lokálna kópia uložená: {local_path}")
 
     # 3. Push na GitHub
     print("\nNahráva sa na GitHub...")
