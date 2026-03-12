@@ -33,15 +33,15 @@ CITIES = [
 REPO_NAME   = "AgentWeather"
 EXCEL_FILE  = "WeatherHistory.xlsx"
 HEADERS = ["Dátum", "Teplota (°C)", "Množstvo zrážok (mm)",
-           "Rýchlosť vetra (m/s)", "Smer vetra (°)", "Oblačnosť (%)", "Dĺžka slnečného svitu (h)"]
+           "Rýchlosť vetra (m/s)", "Smer vetra", "Oblačnosť (%)", "Dĺžka slnečného svitu (h)"]
 
 # ── Pomocné funkcie ───────────────────────────────────────────────────────────
 
 def wind_degrees_to_text(deg: float | None) -> str:
     if deg is None:
         return ""
-    dirs = ["S", "SSZ", "SZ", "ZSZ", "Z", "ZJZ", "JZ", "JJZ",
-            "J", "JJV", "JV", "VJV", "V", "VSV", "SV", "SSV"]
+    dirs = ["Sever", "Sever-Severozápad", "Severozápad", "Západ-Severozápad", "Západ", "Západ-Juhozápad", "Juhozápad", "Juh-Juhozápad",
+            "Juh", "Juh-Juhovýchod", "Juhovýchod", "Východ-Juhovýchod", "Východ", "Východ-Severovýchod", "Severovýchod", "Sever-Severovýchod"]
     return dirs[round(deg / 22.5) % 16]
 
 
@@ -107,7 +107,7 @@ def fetch_forecast(city: dict) -> list[dict]:
             "temp":     avg("temp"),
             "precip":   total("precip"),
             "wind_spd": avg("wind_spd"),
-            "wind_dir": avg("wind_dir"),
+            "wind_dir": wind_degrees_to_text(avg("wind_dir")),
             "clouds":   cloud_avg,
             "sunshine": sunshine,
         })
@@ -287,7 +287,7 @@ def main():
     wb = build_workbook(all_forecasts, existing_wb)
 
     # Uloži lokálnu kópiu
-    local_path = f"{EXCEL_FILE}"
+    local_path = f"/tmp/{EXCEL_FILE}"
     wb.save(local_path)
     print(f"  Lokálna kópia uložená: {local_path}")
 
