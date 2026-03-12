@@ -29,7 +29,7 @@ CITIES = [
     {"name": "Arco",             "lat": 45.9167,  "lon": 10.8833,  "country": "Italy"},
     {"name": "San Vito la Capo", "lat": 38.1739,  "lon": 12.7340,  "country": "Sicily, Italy"},
     {"name": "Margalef",         "lat": 41.2833,  "lon":  0.8167,  "country": "Spain"},
-    {"name": "Barsnes",          "lat": 61.1833,  "lon":  6.7667,  "country": "Norway"},
+    {"name": "Sogndal",          "lat": 61.2297,  "lon":  7.1003,  "country": "Norway"},
 ]
 
 REPO_NAME   = "AgentWeather"
