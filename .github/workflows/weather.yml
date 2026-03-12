@@ -22,6 +22,7 @@ jobs:
         run: pip install requests openpyxl PyGithub
 
       - name: Spusti agenta
+        working-directory: /home/runner/work/AgentWeather
         env:
           GITHUB_TOKEN: ${{ secrets.WEATHER_TOKEN }}
           GITHUB_USER: slavo1976
