@@ -214,7 +214,7 @@ def push_to_github(wb: openpyxl.Workbook, token: str, github_user: str) -> str:
     Pushne WeatherHistory.xlsx do repozitára AgentWeather.
     Ak repo neexistuje, vytvorí ho. Vráti URL súboru.
     """
-    g    = Github(token)
+    g    = Github(auth=Auth.Token(token))
     user = g.get_user()
 
     # Získaj alebo vytvor repo
