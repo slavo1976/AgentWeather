@@ -30,6 +30,8 @@ CITIES = [
     {"name": "San Vito la Capo", "lat": 38.1739,  "lon": 12.7340,  "country": "Sicily, Italy"},
     {"name": "Margalef",         "lat": 41.2833,  "lon":  0.8167,  "country": "Spain"},
     {"name": "Sogndal",          "lat": 61.2297,  "lon":  7.1003,  "country": "Norway"},
+    {"name": "Osp",              "lat": 45.5667,  "lon": 13.8667,  "country": "Slovenia"},
+    {"name": "Buzet",            "lat": 45.4011,  "lon": 13.9711,  "country": "Croatia"},
 ]
 
 REPO_NAME   = "AgentWeather"

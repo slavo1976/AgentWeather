@@ -23,27 +23,24 @@ emoji = "✅" if status == "success" else "❌"
 
 subject = f"{emoji} WeatherAgent {date} — {status.upper()}"
 
-# Linky
-raw_url     = "https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx"
-encoded_url = quote(raw_url, safe="")
-sheets_url  = f"https://docs.google.com/spreadsheets/d/?url={encoded_url}"
-office_url  = f"https://view.officeapps.live.com/op/view.aspx?src={encoded_url}"
+raw_url    = "https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx"
+github_url = "https://github.com/slavo1976/AgentWeather/blob/main/WeatherHistory.xlsx"
+encoded    = quote(raw_url, safe="")
+office_url = f"https://view.officeapps.live.com/op/view.aspx?src={encoded}"
 
-# Plain text verzia
 body_plain = f"""WeatherAgent denný beh
 
 Dátum:  {date}
 Status: {emoji} {status.upper()}
 
-📥 Stiahnuť Excel:     {raw_url}
-📊 Otvoriť v Google Sheets: {sheets_url}
+📥 Stiahnuť Excel:          {raw_url}
 📋 Otvoriť v Office Online: {office_url}
+🔗 GitHub repozitár:        {github_url}
 
 Výstup:
 {output}
 """
 
-# HTML verzia s ikonkami a tlačidlami
 body_html = f"""
 <html><body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
 
@@ -67,17 +64,17 @@ body_html = f"""
       </a>
     </td>
     <td style="padding: 6px 8px;">
-      <a href="{sheets_url}"
-         style="background:#0F9D58; color:#fff; padding:8px 16px; border-radius:6px;
-                text-decoration:none; font-size:13px; display:inline-block;">
-        📊 Otvoriť v Google Sheets
-      </a>
-    </td>
-    <td style="padding: 6px 0 6px 8px;">
       <a href="{office_url}"
          style="background:#D83B01; color:#fff; padding:8px 16px; border-radius:6px;
                 text-decoration:none; font-size:13px; display:inline-block;">
-        📋 Otvoriť v Office Online
+        📋 Office Online
+      </a>
+    </td>
+    <td style="padding: 6px 0 6px 8px;">
+      <a href="{github_url}"
+         style="background:#24292e; color:#fff; padding:8px 16px; border-radius:6px;
+                text-decoration:none; font-size:13px; display:inline-block;">
+        🔗 GitHub
       </a>
     </td>
   </tr>
