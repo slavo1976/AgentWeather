@@ -38,7 +38,7 @@ CITIES = [
 REPO_NAME   = "AgentWeather"
 EXCEL_FILE  = "WeatherHistory.xlsx"
 HEADERS = ["Dátum", "Teplota (°C)", "Množstvo zrážok (mm)",
-           "Rýchlosť vetra (m/s)", "Smer vetra", "Oblačnosť (%)", "Dĺžka slnečného svitu (h)"]
+           "Rýchlosť vetra (m/s)", "Smer vetra", "Oblačnosť (%)", "Dĺžka slnečného svitu (h)", "Zrážky 7 dní (mm)"]
 
 # ── Pomocné funkcie ───────────────────────────────────────────────────────────
 
@@ -151,7 +151,7 @@ def style_sheet(ws, city_info: dict):
         cell.alignment  = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border     = BORDER
 
-    col_widths = [14, 14, 20, 20, 14, 14, 22]
+    col_widths = [14, 14, 20, 20, 14, 14, 22, 18]
     for i, w in enumerate(col_widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.row_dimensions[2].height = 32
@@ -176,6 +176,13 @@ def upsert_sheet(ws, forecast: list[dict]):
             row_idx = max(ws.max_row + 1, 3)
             date_to_row[d] = row_idx
 
+        # Stĺpec C = zrážky (col 3), dáta začínajú od riadku 3
+        precip_col = "C"
+        if row_idx >= 9:
+            sum_formula = f"=SUM({precip_col}{row_idx - 6}:{precip_col}{row_idx})"
+        else:
+            sum_formula = f"=SUM({precip_col}3:{precip_col}{row_idx})"
+
         values = [
             d,
             rec["temp"],
@@ -184,6 +191,7 @@ def upsert_sheet(ws, forecast: list[dict]):
             rec["wind_dir"],
             rec["clouds"],
             rec["sunshine"],
+            sum_formula,
         ]
         alt = (row_idx % 2 == 0)
         for col_idx, val in enumerate(values, start=1):
@@ -195,6 +203,8 @@ def upsert_sheet(ws, forecast: list[dict]):
                 cell.fill = ALT_FILL
             if col_idx == 1 and isinstance(val, date):
                 cell.number_format = "DD.MM.YYYY"
+            if col_idx == 8:
+                cell.number_format = "0.0"
 
 
 def build_workbook(all_forecasts: dict[str, list[dict]],
