@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from urllib.parse import quote
 from datetime import datetime
 
 user   = os.environ["MAIL_USER"]
@@ -22,31 +23,87 @@ emoji = "✅" if status == "success" else "❌"
 
 subject = f"{emoji} WeatherAgent {date} — {status.upper()}"
 
-body = f"""WeatherAgent denný beh
+# Linky
+raw_url     = "https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx"
+encoded_url = quote(raw_url, safe="")
+sheets_url  = f"https://docs.google.com/spreadsheets/d/?url={encoded_url}"
+office_url  = f"https://view.officeapps.live.com/op/view.aspx?src={encoded_url}"
+
+# Plain text verzia
+body_plain = f"""WeatherAgent denný beh
 
 Dátum:  {date}
 Status: {emoji} {status.upper()}
 
+📥 Stiahnuť Excel:     {raw_url}
+📊 Otvoriť v Google Sheets: {sheets_url}
+📋 Otvoriť v Office Online: {office_url}
+
 Výstup:
 {output}
-
-GitHub: https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx
 """
 
-msg = MIMEMultipart()
+# HTML verzia s ikonkami a tlačidlami
+body_html = f"""
+<html><body style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+
+<h2 style="color: {'#2e7d32' if status == 'success' else '#c62828'};">
+  {emoji} WeatherAgent — {status.upper()}
+</h2>
+
+<p><strong>Dátum:</strong> {date}</p>
+
+<hr style="border: none; border-top: 1px solid #ddd; margin: 16px 0;">
+
+<p><strong>📂 Otvoriť / stiahnuť súbor:</strong></p>
+
+<table cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding: 6px 8px 6px 0;">
+      <a href="{raw_url}"
+         style="background:#1565C0; color:#fff; padding:8px 16px; border-radius:6px;
+                text-decoration:none; font-size:13px; display:inline-block;">
+        📥 Stiahnuť Excel
+      </a>
+    </td>
+    <td style="padding: 6px 8px;">
+      <a href="{sheets_url}"
+         style="background:#0F9D58; color:#fff; padding:8px 16px; border-radius:6px;
+                text-decoration:none; font-size:13px; display:inline-block;">
+        📊 Otvoriť v Google Sheets
+      </a>
+    </td>
+    <td style="padding: 6px 0 6px 8px;">
+      <a href="{office_url}"
+         style="background:#D83B01; color:#fff; padding:8px 16px; border-radius:6px;
+                text-decoration:none; font-size:13px; display:inline-block;">
+        📋 Otvoriť v Office Online
+      </a>
+    </td>
+  </tr>
+</table>
+
+<hr style="border: none; border-top: 1px solid #ddd; margin: 16px 0;">
+
+<p><strong>📄 Výstup agenta:</strong></p>
+<pre style="background:#f5f5f5; padding:12px; border-radius:6px;
+            font-size:12px; color:#444; white-space:pre-wrap;">{output}</pre>
+
+</body></html>
+"""
+
+msg = MIMEMultipart("alternative")
 msg["From"]    = user
 msg["To"]      = user
 msg["Subject"] = subject
-msg.attach(MIMEText(body, "plain", "utf-8"))
+msg.attach(MIMEText(body_plain, "plain", "utf-8"))
+msg.attach(MIMEText(body_html,  "html",  "utf-8"))
 
-# Stiahni Excel z GitHub a prilož k emailu
-excel_url = "https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx"
-headers   = {"Authorization": f"token {token}"} if token else {}
-
+# Excel príloha
+headers_req = {"Authorization": f"token {token}"} if token else {}
 try:
-    resp = requests.get(excel_url, headers=headers, timeout=20)
+    resp = requests.get(raw_url, headers=headers_req, timeout=20)
     resp.raise_for_status()
-
     attachment = MIMEBase("application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     attachment.set_payload(resp.content)
     encoders.encode_base64(attachment)
