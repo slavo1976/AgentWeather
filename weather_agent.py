@@ -207,6 +207,25 @@ def upsert_sheet(ws, forecast: list[dict]):
                 cell.number_format = "0.0"
 
 
+
+def refresh_headers(ws, city_info: dict):
+    """Aktualizuje hlavičky existujúceho sheetu — pridá chýbajúce stĺpce."""
+    # Aktualizuj merge a šírky
+    col_widths = [14, 14, 20, 20, 14, 14, 22, 18]
+    for i, w in enumerate(col_widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    # Skontroluj a doplň chýbajúce hlavičky v riadku 2
+    for col_idx, header in enumerate(HEADERS, start=1):
+        cell = ws.cell(row=2, column=col_idx)
+        if cell.value != header:
+            cell.value     = header
+            cell.font      = HEADER_FONT
+            cell.fill      = HEADER_FILL
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border    = BORDER
+
+
 def build_workbook(all_forecasts: dict[str, list[dict]],
                    existing_wb: openpyxl.Workbook | None = None) -> openpyxl.Workbook:
     wb = existing_wb or openpyxl.Workbook()
@@ -221,6 +240,8 @@ def build_workbook(all_forecasts: dict[str, list[dict]],
 
         if city_name in wb.sheetnames:
             ws = wb[city_name]
+            # Vždy aktualizuj hlavičky — pridá nové stĺpce ak chýbajú
+            refresh_headers(ws, city_info)
         else:
             ws = wb.create_sheet(city_name)
             ws.title = city_name
