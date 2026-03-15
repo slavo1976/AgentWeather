@@ -20,6 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime, timezone, date, timedelta
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from github import Github, Auth, GithubException
 
 # ── Konfigurácia ──────────────────────────────────────────────────────────────
@@ -279,12 +280,20 @@ def main():
 
     print("=== WeatherAgent štartuje ===\n")
 
-    # 1. Stiahni predpovede
+    # 1. Stiahni predpovede paralelne
     all_forecasts: dict[str, list[dict]] = {}
-    for city in CITIES:
-        print(f"Sťahujem predpoveď pre {city['name']} ({city['country']})...")
-        all_forecasts[city["name"]] = fetch_forecast(city)
-        print(f"  → {len(all_forecasts[city['name']])} dní stiahnutých.")
+    print(f"Sťahujem predpovede pre {len(CITIES)} miest paralelne...")
+
+    def fetch_city(city):
+        result = fetch_forecast(city)
+        print(f"  ✓ {city['name']} ({city['country']}) — {len(result)} dní")
+        return city["name"], result
+
+    with ThreadPoolExecutor(max_workers=len(CITIES)) as executor:
+        futures = {executor.submit(fetch_city, city): city for city in CITIES}
+        for future in as_completed(futures):
+            name, forecast = future.result()
+            all_forecasts[name] = forecast
 
     # 2. Zostav workbook (pokusom načítaj existujúci zo GitHub)
     existing_wb = None
