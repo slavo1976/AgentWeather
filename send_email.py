@@ -30,7 +30,7 @@ Status: {emoji} {status.upper()}
 Výstup:
 {output}
 
-GitHub: https://github.com/slavo1976/AgentWeather/blob/main/WeatherHistory.xlsx
+GitHub: https://raw.githubusercontent.com/slavo1976/AgentWeather/main/WeatherHistory.xlsx
 """
 
 msg = MIMEMultipart()
