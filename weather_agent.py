@@ -56,7 +56,11 @@ def fetch_forecast(city: dict) -> list[dict]:
     na 7-dňovú predpoveď. Vráti zoznam dict pre každý deň.
     """
     url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
-    headers = {"User-Agent": "WeatherAgent/1.0 github.com/AgentWeather"}
+    headers = {
+        "User-Agent": "WeatherAgent/1.0 github.com/AgentWeather",
+        "Cache-Control": "no-cache",      # vždy čerstvé dáta
+        "Pragma": "no-cache",
+    }
     params  = {"lat": city["lat"], "lon": city["lon"]}
 
     resp = requests.get(url, headers=headers, params=params, timeout=20)
@@ -71,7 +75,7 @@ def fetch_forecast(city: dict) -> list[dict]:
         dt    = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
         d     = dt.date()
         delta = (d - today).days
-        if delta < 0 or delta >= 7:
+        if delta < 0 or delta >= 8:   # 8 dní — zachytí aj posledný deň
             continue
 
         instant = entry["data"].get("instant", {}).get("details", {})
@@ -92,7 +96,7 @@ def fetch_forecast(city: dict) -> list[dict]:
 
     # Agregácia na deň (priemer / suma)
     result = []
-    for d in sorted(day_buckets)[:7]:
+    for d in sorted(day_buckets)[:7]:  # prvých 7 dní z dostupných
         rows = day_buckets[d]
 
         def avg(key):
