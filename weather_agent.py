@@ -46,18 +46,20 @@ def geocode_city(name: str, country: str) -> tuple[float, float] | None:
     return None
 
 
-def load_extra_cities() -> list[dict]:
+def load_extra_cities(known: set[str] | None = None) -> list[dict]:
     """
     Načíta mestá z add_cities.txt.
     Formát riadku (každý riadok = jedno mesto):
       Názov, Štát
       Názov, Štát, lat, lon
     Prázdne riadky a riadky začínajúce # sú ignorované.
+    Mestá ktorých názov (case-insensitive) je v known sa preskočia.
     """
     path = Path(__file__).parent / "add_cities.txt"
     if not path.exists():
         return []
 
+    known = known or set()
     extra = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -70,8 +72,13 @@ def load_extra_cities() -> list[dict]:
 
         name, country = parts[0], parts[1]
 
+        # Kontrola duplikátu
+        if name.lower() in known:
+            print(f"  ⚠ '{name}' už existuje — preskakujem")
+            continue
+        known.add(name.lower())
+
         if len(parts) >= 4:
-            # Koordináty zadané priamo
             try:
                 lat, lon = float(parts[2]), float(parts[3])
                 extra.append({"name": name, "lat": lat, "lon": lon, "country": country})
@@ -389,9 +396,10 @@ def main():
 
     # 1. Stiahni predpovede paralelne
     all_forecasts: dict[str, list[dict]] = {}
-    # Načítaj extra mestá z add_cities.txt
-    extra = load_extra_cities()
-    all_cities = CITIES + extra
+    # Načítaj extra mestá z add_cities.txt (bez duplikátov)
+    known_names = {c["name"].lower() for c in CITIES}
+    extra       = load_extra_cities(known=known_names)
+    all_cities  = CITIES + extra
     if extra:
         print(f"  → {len(extra)} extra miest načítaných z add_cities.txt")
 
