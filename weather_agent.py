@@ -23,6 +23,74 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from github import Github, Auth, GithubException
 
+from pathlib import Path
+
+# ── Načítanie miest z add_cities.txt ─────────────────────────────────────────
+
+def geocode_city(name: str, country: str) -> tuple[float, float] | None:
+    """Zistí GPS súradnice mesta cez OpenStreetMap Nominatim API."""
+    try:
+        query = f"{name}, {country}"
+        resp  = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": query, "format": "json", "limit": 1},
+            headers={"User-Agent": "WeatherAgent/1.0"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        results = resp.json()
+        if results:
+            return float(results[0]["lat"]), float(results[0]["lon"])
+    except Exception as e:
+        print(f"  Geocoding chyba pre '{name}': {e}")
+    return None
+
+
+def load_extra_cities() -> list[dict]:
+    """
+    Načíta mestá z add_cities.txt.
+    Formát riadku (každý riadok = jedno mesto):
+      Názov, Štát
+      Názov, Štát, lat, lon
+    Prázdne riadky a riadky začínajúce # sú ignorované.
+    """
+    path = Path(__file__).parent / "add_cities.txt"
+    if not path.exists():
+        return []
+
+    extra = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 2:
+            print(f"  Preskakujem neplatný riadok: '{line}'")
+            continue
+
+        name, country = parts[0], parts[1]
+
+        if len(parts) >= 4:
+            # Koordináty zadané priamo
+            try:
+                lat, lon = float(parts[2]), float(parts[3])
+                extra.append({"name": name, "lat": lat, "lon": lon, "country": country})
+                print(f"  + {name} ({country}) — koordináty zo súboru")
+                continue
+            except ValueError:
+                pass
+
+        # Geocoding cez Nominatim
+        coords = geocode_city(name, country)
+        if coords:
+            lat, lon = coords
+            extra.append({"name": name, "lat": lat, "lon": lon, "country": country})
+            print(f"  + {name} ({country}) — geocoded: {lat:.4f}, {lon:.4f}")
+        else:
+            print(f"  ✗ Nepodarilo sa nájsť: '{name}, {country}' — preskakujem")
+
+    return extra
+
 # ── Konfigurácia ──────────────────────────────────────────────────────────────
 
 CITIES = [
@@ -33,6 +101,8 @@ CITIES = [
     {"name": "Sogndal",          "lat": 61.2297,  "lon":  7.1003,  "country": "Norway"},
     {"name": "Osp",              "lat": 45.5667,  "lon": 13.8667,  "country": "Slovenia"},
     {"name": "Buzet",            "lat": 45.4011,  "lon": 13.9711,  "country": "Croatia"},
+    {"name": "Starigrad",        "lat": 44.2878,  "lon": 15.9397,  "country": "Croatia"},
+    {"name": "Wendenstock",      "lat": 46.8167,  "lon":  8.4167,  "country": "Switzerland"},
 ]
 
 REPO_NAME   = "AgentWeather"
@@ -231,14 +301,16 @@ def refresh_headers(ws, city_info: dict):
 
 
 def build_workbook(all_forecasts: dict[str, list[dict]],
-                   existing_wb: openpyxl.Workbook | None = None) -> openpyxl.Workbook:
+                   existing_wb: openpyxl.Workbook | None = None,
+                   cities: list | None = None) -> openpyxl.Workbook:
     wb = existing_wb or openpyxl.Workbook()
+    cities = cities or CITIES
 
     # Odstráň predvolený list ak nový
     if existing_wb is None and "Sheet" in wb.sheetnames:
         del wb["Sheet"]
 
-    for city_info in CITIES:
+    for city_info in cities:
         city_name = city_info["name"]
         forecast  = all_forecasts[city_name]
 
@@ -317,15 +389,21 @@ def main():
 
     # 1. Stiahni predpovede paralelne
     all_forecasts: dict[str, list[dict]] = {}
-    print(f"Sťahujem predpovede pre {len(CITIES)} miest paralelne...")
+    # Načítaj extra mestá z add_cities.txt
+    extra = load_extra_cities()
+    all_cities = CITIES + extra
+    if extra:
+        print(f"  → {len(extra)} extra miest načítaných z add_cities.txt")
+
+    print(f"Sťahujem predpovede pre {len(all_cities)} miest paralelne...")
 
     def fetch_city(city):
         result = fetch_forecast(city)
         print(f"  ✓ {city['name']} ({city['country']}) — {len(result)} dní")
         return city["name"], result
 
-    with ThreadPoolExecutor(max_workers=len(CITIES)) as executor:
-        futures = {executor.submit(fetch_city, city): city for city in CITIES}
+    with ThreadPoolExecutor(max_workers=len(all_cities)) as executor:
+        futures = {executor.submit(fetch_city, city): city for city in all_cities}
         for future in as_completed(futures):
             name, forecast = future.result()
             all_forecasts[name] = forecast
@@ -343,7 +421,7 @@ def main():
         print(f"\nExistujúci '{EXCEL_FILE}' nenájdený — vytváram nový.")
 
     print("\nBuduje sa Excel workbook...")
-    wb = build_workbook(all_forecasts, existing_wb)
+    wb = build_workbook(all_forecasts, existing_wb, all_cities)
 
     # Uloži lokálnu kópiu
 
