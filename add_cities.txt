@@ -1,0 +1,8 @@
+# Pridaj vlastné mestá — jedno na riadok
+# Formát A: Názov, Štát               (koordináty sa zistia automaticky)
+# Formát B: Názov, Štát, lat, lon     (koordináty zadáš priamo)
+#
+ Rodellar, Spain
+ Kalymnos, Greece
+ Finale Ligure, Italy
+ Céüse, France, 44.4167, 5.9833
